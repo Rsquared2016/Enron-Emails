@@ -62,7 +62,7 @@ data_tools.add_feature_financial_sum(my_dataset, my_feature_list)
 data_tools.add_feature_message_proportion_with_poi(my_dataset, my_feature_list)
 
 ### Get K-best features 
-k_features = 10
+k_features = 7
 k_best_features = data_tools.get_k_best(my_dataset, my_feature_list, k_features)
 my_feature_list = POI_label + k_best_features.keys()
 
@@ -116,7 +116,7 @@ from sklearn.model_selection import GridSearchCV
 
 ### tune parameters for K-means Clustering; uncomment to run
 ########################################
-### trails = 1
+### trials = 1
 ### parameters = {"tol": [1e-15, 1e-10, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]}
 ### k_clf = GridSearchCV(k_clf, parameters) 
 ### print "(score, precision, recall) using optimized Stochastic Gradient Descent:",\
@@ -134,7 +134,7 @@ from sklearn.model_selection import GridSearchCV
 is_pca = False  
 trials = 1000
 test_size = 0.3
-n_components = 5
+n_components = 3
 
 print "(score, precision, recall) using GaussianNB:",\
     data_tools.evaluate_clf(nb_clf, features, labels, trials, test_size,  is_pca, n_components), "\n"

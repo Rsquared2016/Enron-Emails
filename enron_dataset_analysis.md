@@ -14,14 +14,33 @@ The goal of this project is to utilize the financial data and communication reco
 
 > What features did you end up using in your POI identifier, and what selection process did you use to pick them? Did you have to do any scaling? Why or why not? As part of the assignment, you should attempt to engineer your own feature that doesn't come ready-made in the dataset--explain what feature you tried to make, and the rationale behind it. If you used an algorithm like a decision tree, please also give the feature importance of the features that you use.
 
-In order to optimize and select the most relevant features, I have applied the `feature_selection.SelectKBest` module from `scikit-learn` package. Before the feature selection process, I have engineered two new features, one for financial features group, and another one for email features. The created new financial feature, `financial_sum`, is the combination of `salary`, `bonus` and `total_stock_value`, which represents the payment and investment income that an individual has earned from company. The new engineered email feature, `message_proportion_with_poi`, is the ratio of the total number of emails to and from a POI to the total number of emails sent or received. These two features were added to the `features_list` for features selection. And the most significant ten features and related impact scores are listed in the table below:
+In order to optimize and select the most relevant features, I have applied the `feature_selection.SelectKBest` module from `scikit-learn` package. I've created a plot that ranks the different features in the dataset by their , and the top ten feature scores are listed below: 
+
+![Feature Score via SelectKBest](feature_score.png)
 
  Features | Score
 ------------ | ------------- 
 exercised_stock_options | 24.815
 total_stock_value | 24.183
 bonus | 20.792
-financial_sum | 19.225
+salary | 18.290
+deferred_income | 11.458
+long_term_incentive| 9.922
+restricted_stock | 9.213
+total_payments | 8.773
+shared_receipt_with_poi | 8.589
+loan_advances|7.184
+
+Before the feature selection process, I have engineered two new features, one for financial features group, and another one for email features. The created new financial feature, `financial_sum`, is the combination of `salary`, `bonus` and `total_stock_value`, which represents the payment and investment income that an individual has earned from company. The new engineered email feature, `message_proportion_with_poi`, is the ratio of the total number of emails to and from a POI to the total number of emails sent or received. These two features were added to the `features_list` for features selection. And the most significant ten features and related impact scores are listed in the table below:
+
+![New Feature Score via SelectKBest](new_feature_score.png)
+
+ Features | Score
+------------ | ------------- 
+exercised_stock_options | 24.815
+total_stock_value | 24.183
+bonus | 20.792
+__financial_sum__ | __19.225__
 salary | 18.290
 deferred_income | 11.458
 long_term_incentive| 9.922
@@ -29,8 +48,15 @@ restricted_stock | 9.213
 total_payments | 8.773
 shared_receipt_with_poi | 8.589
 
-It is noteworthy that the new feature `financial_sum` has relatively high impact score (19.225),  while new email feature  `message_proportion_with_poi` is not selected as final features. And among the top 10 selected features, 9 of them are related with financial features, only one email feature `shared_receipt_with_poi` has been selected, which also indicates that email communication data does not present significant influence as financial data for POI identification. 
+It is noteworthy that the new feature `financial_sum` has relatively high impact score (19.225),  while new email feature  `message_proportion_with_poi` was not selected as top 10 features. And among the top 10 selected features, 9 of them are related with financial features, only one email feature `shared_receipt_with_poi` has been selected, which also indicates that email communication data does not present significant influence as financial data for POI identification. In order to determine how many features to use in the final algorithm, I have created a plot of metrics by different number of K-Best features in GaussianNB classifier. The figure is shown as below:  
 
+![New Feature Score via SelectKBest](metric_score.png)
+
+As the requested threshold for precision and recall is 0.3, `k=7` is the first point where both scores reach above 0.3. K=11 is another point where both scores are above 0.3, but at this point accuracy score is slightly lower. To balance the computation amount and algorithm performance, I decide to use `k=7` as final number of k-best features. And the feature list would be:
+ ```
+exercised_stock_options, total_stock_value, bonus 
+financial_sum, salary, deferred_income, long_term_incentive
+```
 Before training the machine learning algorithm classifiers, I have scaled all selected features using a standard scalar from `preprocessing.StandardScaler` module. Since the range of values of data varies widely (e.g. `total_stock_value` and `salary`), feature-scaling can preprocess the features and ensure they are weighted equally.
 
 > What algorithm did you end up using? What other one(s) did you try? How did model performance differ between algorithms?  
@@ -50,39 +76,44 @@ To check the performance difference between algorithms, I have evaluated them by
 
 Classifier | Score | Precision | Recall 
 ------------ | ------------- | ------------|------
-`Gaussian Naive Bayes` | 0.860 | 0.400  | 0.400
-Support Vector Machines| 0.837 | 0.200 |0.250
-Neareat Neighbors |0.860 |0.400 |0.400
-Stochastic Gradient Descent| 0.618 | 0.808 |0.212
-K-Means | 0.711 | 0.342 | 0.741
-Random Forests | 0.865 | 0.154 | 0.297
+__Gaussian Naive Bayes__ | 0.881 | 0.333  | 0.250
+Support Vector Machines| 0.809 | 0 |0
+Neareat Neighbors |0.881 |0.333 |0.250
+Stochastic Gradient Descent| 0.652 | 0.780 |0.149
+K-Means | 0.758 | 0.403 | 0.791
+Random Forests | 0.907 | 0.381 | 0.393
 
-The second table shows the validation results by using Principal Component Analysis (PCA) for different classifiers. 
+ The above tables show that GaussianNB performed reasonably well for this dataset, with relatively high evaluation metrics. SGD has the top precision score (0.780) among the six algorithms, while K-Means has best recall (0.791) score. Though Random Forests classifier takes the longest computation time, it will prevent the overfitting problem. 
+
+ I also checked check the algorithm performance in Principal Component Analysis (PCA). To parallel the comparison, I set `n_components=3` for all classifiers, thought it might not be the best `n_components` parameter for each classifier. Function `get_pca_n_components` from `data_tools` can help to find the optimal n_component value, in which `GridSearchCV` is utilized. The validation results is shown as following table: 
 
 Classifier (PCA=True)| Score | Precision | Recall
 ------------ | ------------- | ------------|------
-Gaussian Naive Bayes | 0.860 | 0.400  | 0.400
-Support Vector Machines| 0.767 | 0.200 |0.143
-Neareat Neighbors | 0.860|0.200 |0.333
-Stochastic Gradient Descent| 0.600 | 0.726 |0.198
-K-Means | 0.834 | 0.072 | 0.037
-Random Forests | 0.882 | 0.240 | 0.462
+Gaussian Naive Bayes | 0.905 | 0.333  | 0.333
+Support Vector Machines| 0.762 | 0 |0
+Neareat Neighbors | 0.881|0.333 |0.250
+Stochastic Gradient Descent| 0.626 | 0.757 |0.147
+K-Means | 0.690 | 0.430 | 0.667
+Random Forests | 0.906 | 0.219 | 0.233
 
-The above tables show that GaussianNB performed reasonably well for this dataset, with relatively high evaluation metrics ( precision=0.400, recall =0.400). SGD has the top precision score (0.808) among the six algorithms, while K-Means has best recall (0.741) score. Though Random Forests classifier takes the longest computation time, it will prevent the overfitting problem. 
 
-PCA does improve the performance for random forest classifier, both precision and recall score get increased, but for SVM, K-Neighbors, SGD and K-Means classifier, their performance does not get much improvements. As using PCA increases the amount of calculation, which will lower the computation speed for the algorithm, in order to balance the effectiveness and performance, I decide not to use PCA as final algorithm. 
+PCA does improve the performance for K-Means classifier, both accuracy and precision scores get increased, as its accuracy score is relatively low among all classifiers, so K-Means was not selected as final algorithm. For other classifiers, SVM, K-Neighbors, SGD and Random Forests, performance does not get much improvements with PCA. As using PCA increases the amount of calculation, which will lower the computation speed for the algorithm, we also need to consider to balance the effectiveness and performance. Using  `get_pca_n_components` function, the optimal component value `n_components=0` was identified for GaussianNB(), therefore PCA was not included in the final algorithm. 
+
 
 > What does it mean to tune the parameters of an algorithm, and what can happen if you don’t do this well?  How did you tune the parameters of your particular algorithm? (Some algorithms do not have parameters that you need to tune -- if this is the case for the one you picked, identify and briefly explain how you would have done it for the model that was not your final choice or a different model that does utilize parameter tuning, e.g. a decision tree classifier).  
+
+The purpose of algorithm tuning is to find the best point or points in the classifier where performance can be optimum. The more tuned the parameters of an algorithm, the more specific the algorithm will be for the training data and test sets. This strategy can be effective, but it can also lead to more peculiar models that overfit the test sets and don’t perform as well in general practice.
 
 There is no parameters that need to be tuned for Gaussian Naive Bayes. So I choose to tune the `tol` for K-means clustering using exhaustive searches. The K-means clustering was initialized with 2 clusters(`n_clusters`) which represents POI and non-POI clusters. Below is the list of `tol` numbers that I used to tune for the classifier: 
 ```
 parameters = {"tol": [1e-15, 1e-10, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]}
 k_clf = GridSearchCV(k_clf, parameters) 
 ```
-The optimized parameter value is `tol=0.0001`, and the evaluation metrics (via `evaluate_clf` function) for optimized K-Means Clustering is
+The optimized parameter value is `tol=1e-10`, and the evaluation metrics (via `evaluate_clf` function) for optimized K-Means Clustering is
+
 Score | Precision | Recall
 ------------ | ------------- | -----------
-0.706| 0.347| 0.732 
+0.907 | 0.400| 0.667
 
 > What is validation, and what’s a classic mistake you can make if you do it wrong? How did you validate your analysis? 
 
@@ -100,14 +131,14 @@ __GaussianNB(priors=None)__
 
 Validation | Accuracy | Precision | Recall
 ------|------|------|------
-`evaluate_clf`| 0.860| 0.400 | 0.400
-`tester.py`|0.837| 0.371|0.324	
+`evaluate_clf`| 0.881 | 0.333  | 0.250
+`tester.py`|0.840| 0.429|0.354	
 
 For the final algorithm (Gaussian NB) I chose, it performed reasonably well because it showed relative high precision and recall scores in both validations. High precisions ensures truly capture the actual “POI”, while a high recall score ensures culpable individuals are included and labeled as “POI”. 
 
 
 ### Conclusion
-In this project, I utilized GaussianNB algorithm to build a predictive identifier to investigate person who may be involved in Enron fraud. Similar models may have application potentials for other types of financial checking, such as online payment / digit payment, credit card fraud identification. To improve the GaussianNB algorithm model, we can explore more features from email corpus for data training and test in the further analysis. And as many data is missing in current dataset version, we can gather more information to improve the integrity of the dataset, or pre-process the data by filling in missing values by certain algorithm. 
+In this project, I utilized GaussianNB algorithm to build a predictive identifier to investigate person who may be involved in Enron fraud. Similar models may have application potentials for other types of financial checking, such as online payment / digit payment, credit card fraud identification. To improve the GaussianNB algorithm model, we can explore more features from email corpus for data training and test in the further analysis. And as many data is missing in current dataset version, we can gather more information to improve the integrity of the dataset, or pre-process the data by filling in missing values by certain algorithm. There is a few more optional outliers in the dataset, we can implement the Tukey's Inter Quartile Range method to identify these outliers and remove them for building a more accurate predictive model. 
 
 
 -------
@@ -122,4 +153,5 @@ In this project, I utilized GaussianNB algorithm to build a predictive identifie
 * [Wikipedia Naive Bayes classifier](https://en.wikipedia.org/wiki/Naive_Bayes_classifier)
 * [Supervised Machine Learning: A Review of Classification Techniques](https://s3-us-west-2.amazonaws.com/mlsurveys/54.pdf)
 * [Do we Need Hundreds of Classifiers to Solve Real World Classification Problems?](http://jmlr.org/papers/v15/delgado14a.html)
-
+* [Python Machine Learning - Chapter 4 - Building Good Training Sets – Data Pre-Processing](https://github.com/rasbt/python-machine-learning-book/blob/master/code/ch04/ch04.ipynb)
+* [Selecting dimensionality reduction with Pipeline and GridSearchCV](http://scikit-learn.org/stable/auto_examples/plot_compare_reduction.html#sphx-glr-auto-examples-plot-compare-reduction-py)

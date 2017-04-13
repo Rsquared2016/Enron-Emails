@@ -11,6 +11,8 @@ from sklearn.feature_selection import SelectKBest
 from sklearn.model_selection import train_test_split
 from sklearn.decomposition import PCA
 from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.pipeline import Pipeline
+
 
 def explore_data(data_dict):
     ### This function returns the number of non-NaN values for each feature ###
@@ -94,14 +96,31 @@ def add_feature_message_proportion_with_poi(data_dict, features_list):
             person['message_proportion_with_poi'] = 'NaN' 
     features_list += ['message_proportion_with_poi']
 
-
+def visualize_feature_scores(data_dict, features_list):
+    data = featureFormat(data_dict, features_list)
+    labels, features = targetFeatureSplit(data)
+    
+    ### Plot features score for all features
+    selector = SelectKBest(k='all')
+    selector.fit(features,labels)
+    scores = selector.scores_
+    indices = np.argsort(scores)[::-1]
+    temp_features = np.array(features_list[1:]) #remove 'poi' from features list
+    plt.title('Feature Scores via SelectKBest')
+    plt.bar(np.arange(len(temp_features)), scores[indices], color='lightblue', align='center')
+    plt.xticks(np.arange(len(temp_features)),temp_features[indices],rotation=90)
+    plt.xlim([-1,len(temp_features)])
+    plt.tight_layout()
+    plt.show()
+    
+    
 def get_k_best(data_dict, features_list, k_features):
     ### Use scikit-learn's SelectKBest for features selection
     ### Return dict where keys=features, values=scores
-    
+     
     data = featureFormat(data_dict, features_list)
     labels, features = targetFeatureSplit(data)
-
+    
     k_best = SelectKBest(k=k_features)
     k_best.fit(features, labels)
     scores = k_best.scores_
@@ -110,6 +129,68 @@ def get_k_best(data_dict, features_list, k_features):
     print "{0} best features and scores: {1}\n".format(k_features, feature_and_score[:k_features])
     return k_best_features
 
+def get_pca_n_components(features, labels, classifier):
+
+    pca = PCA(n_components=3)
+    selection = SelectKBest(k=7)
+    combined_features = FeatureUnion([("pca", pca), ("univ_select", selection)])
+    
+    clf = classifier
+    scaler = StandardScaler()
+    # Do grid search over k, n_components:
+    param_grid = dict(features__pca__n_components=[0,1,2,3,4,5,6,7,8],
+              features__univ_select__k=[7])
+
+    sss = StratifiedShuffleSplit(test_size=0.3, random_state=42)
+    # create classifier using pipeline & pass to GridSearchCV
+    pipeline = Pipeline([('scaling', scaler),
+                 ('features', combined_features), 
+                 ('clf', clf)])
+    grid_search = GridSearchCV(pipeline, param_grid = param_grid, cv=sss, verbose=10, scoring = 'f1')
+    grid_search.fit(features, labels)
+    print(grid_search.best_estimator_)
+
+def visualize_metrics_by_kfeatures(data_dict, feature_list):
+    data = featureFormat(data_dict, feature_list)
+    labels, features = targetFeatureSplit(data)
+
+    pipe = Pipeline([
+        ('reduce_dim', SelectKBest()),
+        ('classify', GaussianNB())
+        ])
+
+    N_FEATURES_OPTIONS = range(1,len(feature_list))
+
+    param_grid = [
+        {
+        'reduce_dim': [SelectKBest()],
+        'reduce_dim__k': N_FEATURES_OPTIONS
+        }]
+
+    reducer_labels = ['SelectKBest']
+
+    #fig = plt.figure()
+
+    score_list = ['precision','recall','accuracy']
+    for score in score_list:
+        grid = GridSearchCV(pipe, cv=3, n_jobs=-1, param_grid=param_grid, scoring=score)
+        grid.fit(features, labels)
+        mean_scores = np.array(grid.cv_results_['mean_test_score'])
+        plt.plot(N_FEATURES_OPTIONS, mean_scores, marker='o')
+
+    # scores are in the order of param_grid iteration, which is alphabetical
+    #mean_scores = mean_scores.reshape(1, -1, len(N_FEATURES_OPTIONS))
+
+    #plt.gca().set_color_cycle(['red', 'green','blue'])
+    plt.title("Accuracy, Precision, Recall vs. Number of K-Best Features")
+    plt.xlabel('Number of Features')
+    plt.ylabel('Score')
+    plt.ylim((0.1, 0.9))
+    plt.xlim(0,len(feature_list))
+    plt.legend(['precision', 'recall','accuracy'], loc='upper right')
+    plt.grid()
+    plt.show()
+    #fig.savefig('score.png')
 
 def evaluate_clf(clf, features, labels, trials, test_size, is_pca, n_components): 
     ### evaluation function for machine learning algorithm: 
